@@ -25,4 +25,4 @@ To test the deployed application, you may log in using the email `test@test.com`
 If you have any questions about the repo, please [open an issue](https://github.com/deckiedevs/shop-shop-redux/issues) or contact me via email at deckiedevs@gmail.com. You can find more of my work on my GitHub, [deckiedevs](https://github.com/deckiedevs/).
     
 ## Credits
-* Built with some uncertainty by Mila Decker.
+* Refactored by Alyssa Cowles.
