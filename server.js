@@ -1,65 +1,58 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
-
-import { pluralize } from '../../utils/helpers';
-import { ADD_TO_CART, UPDATE_CART_QUANTITY } from '../../utils/actions';
+import { useQuery } from '@apollo/react-hooks';
+import { UPDATE_CATEGORIES, UPDATE_CURRENT_CATEGORY } from '../../utils/actions';
+import { QUERY_CATEGORIES } from '../../utils/queries';
 import { idbPromise } from '../../utils/helpers';
 
-function ProductItem(item) {
-    const {
-        image,
-        name,
-        _id,
-        price,
-        quantity
-    } = item;
-
+function CategoryMenu() {
     const dispatch = useDispatch();
-    const cart = useSelector(state => state.cart);
+    const categories = useSelector(state => state.categories);
+    const { loading, data: categoryData } = useQuery(QUERY_CATEGORIES);
 
-    const addToCart = () => {
-        // find the cart item with the matching id
-        const itemInCart = cart.find((cartItem) => cartItem._id === _id);
-
-        // if there was a match, call UPDATE for purchase quantity
-        if (itemInCart) {
-            dispatch({
-                type: UPDATE_CART_QUANTITY,
-                _id: _id,
-                purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1
+    useEffect(() => {
+        if (categoryData) {
+            // execute dispatch function with action object indicating the type of action and data to set for category state
+            dispatch({ 
+                type: UPDATE_CATEGORIES,
+                categories: categoryData.categories
             });
 
-            idbPromise('cart', 'put' , {
-                ...itemInCart,
-                purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1
-            })
-        } else {
-            dispatch({
-                type: ADD_TO_CART,
-                product: { ...item, purchaseQuantity: 1 }
-            })
-
-            idbPromise('cart', 'put', { ...item, purchaseQuantity: 1 });
+            categoryData.categories.forEach(category => { 
+                idbPromise('categories', 'put', category);
+            });
+        } else if (!loading) {
+            idbPromise('categories', 'get').then(categories => {
+                dispatch({ 
+                    type: UPDATE_CATEGORIES,
+                    categories: categories
+                });
+            });
         }
+    }, [categoryData, loading, dispatch]);
+
+    const handleClick = id => {
+        dispatch({
+            type: UPDATE_CURRENT_CATEGORY,
+            currentCategory: id
+        });
     };
 
     return (
-        <div className='card px-1 py-1'>
-        <Link to={`/products/${_id}`}>
-            <img
-            alt={name}
-            src={`/images/${image}`}
-            />
-            <p>{name}</p>
-        </Link>
         <div>
-            <div>{quantity} {pluralize('item', quantity)} in stock</div>
-            <span>${price}</span>
-        </div>
-        <button onClick={addToCart}>Add to cart</button>
+            <h2>Choose a Category:</h2>
+                {categories.map(item => (
+                    <button
+                        key={item._id}
+                        onClick={() => {
+                            handleClick(item._id);
+                        }}
+                    >
+                        {item.name}
+                    </button>
+            ))}
         </div>
     );
 }
 
-export default ProductItem;
+export default CategoryMenu;
