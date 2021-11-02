@@ -1,95 +1,130 @@
-import { useReducer } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, useParams } from 'react-router-dom';
+import { useQuery } from '@apollo/react-hooks';
+ 
+import { QUERY_PRODUCTS } from '../utils/queries';
 
+import { idbPromise } from '../utils/helpers';
 import {
-    ADD_TO_CART,
-    ADD_MULTIPLE_TO_CART,
-    CLEAR_CART,
     REMOVE_FROM_CART,
     UPDATE_CART_QUANTITY,
-    UPDATE_CATEGORIES,
-    UPDATE_CURRENT_CATEGORY,
-    UPDATE_PRODUCTS,
-    TOGGLE_CART,
-} from './actions';
+    ADD_TO_CART,
+    UPDATE_PRODUCTS
+} from '../utils/actions';
 
-const initialState = {
-    cart: [],
-    cartOpen: false,
-    products: [],
-    categories: [],
-    currentCategory: ''    
-};
+import Cart from '../components/Cart';
+import spinner from '../assets/spinner.gif';
 
-export const reducer = (state = initialState, action) => {
-    switch (action.type) {
-        // if check action.type and, return a new state object with an appropriately updated products array
-        case ADD_TO_CART: 
-            return {
-                ...state,
-                cartOpen: true,
-                cart: [...state.cart, action.product]
-            };
-        case ADD_MULTIPLE_TO_CART:
-            return {
-                ...state,
-                cart: [...state.cart, ...action.products]
-            };
-        case CLEAR_CART: 
-            return {
-                ...state,
-                cartOpen:false,
-                cart: []
-            };
-        case REMOVE_FROM_CART:
-            let newState = state.cart.filter(product => {
-                return product._id !== action._id;
+function Detail() {
+    const dispatch = useDispatch();
+    const products = useSelector(state => state.products);
+    const cart = useSelector(state => state.cart);
+    const { id } = useParams();
+
+    const [currentProduct, setCurrentProduct] = useState({});
+    const { loading, data } = useQuery(QUERY_PRODUCTS);
+    
+    useEffect(() => {
+        // already in global store
+        if (products.length) {
+            setCurrentProduct(products.find(product => product._id === id));
+        
+        // retrieved from server
+        } else if (data) {
+            dispatch({
+                type: UPDATE_PRODUCTS,
+                products: data.products
+            });
+        
+            data.products.forEach((product) => {
+                idbPromise('products', 'put', product);
             });
 
-            return {
-                ...state,
-                cartOpen: newState.length > 0,
-                cart: newState
-            };
-        case TOGGLE_CART:
-            return {
-                ...state,
-                cartOpen: !state.cartOpen
-            };
-        case UPDATE_CART_QUANTITY:
-            return {
-                ...state,
-                cartOpen: true,
-                cart: state.cart.map(product => {
-                    if (action._id === product._id) {
-                        product.purchaseQuantity = action.purchaseQuantity;
-                    }
-                    return product;
-                })
-            };
-        case UPDATE_PRODUCTS:
-            return {
-                ...state,
-                products: [...action.products]
-            };
-        case UPDATE_CATEGORIES:
-            return {
-                ...state,
-                categories: [...action.categories]
-            };
+        // get cache from idb
+        } else if (!loading) {
+            idbPromise('products', 'get').then((indexedProducts) => {
+                dispatch({
+                type: UPDATE_PRODUCTS,
+                products: indexedProducts
+                });
+            });
+        }
+    }, [products, data, loading, dispatch, id]);
 
-        case UPDATE_CURRENT_CATEGORY:
-            return {
-                ...state,
-                currentCategory: action.currentCategory
-            };
-        // else do not update state
-        default:
-            return state;
-    }
+    const addToCart = () => {
+        const itemInCart = cart.find((cartItem) => cartItem._id === id);
+
+        if (itemInCart) {
+            dispatch({
+                type: UPDATE_CART_QUANTITY,
+                _id: id,
+                purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1
+            });
+
+            // update indexedDB
+            idbPromise('cart', 'put', {
+                ...itemInCart,
+                purchaseQuantity:parseInt(itemInCart.purchaseQuantity) + 1
+            });
+        } else {
+            dispatch({
+                type: ADD_TO_CART,
+                product: { ...currentProduct, purchaseQuantity: 1 }
+            });
+
+            idbPromise('cart', 'pub', { ...currentProduct, purchaseQuantity: 1 });
+        }
+    };
+
+    const removeFromCart = () => {
+        dispatch({
+            type: REMOVE_FROM_CART,
+            _id: currentProduct._id
+        });
+
+        // delete from indexedDB
+        idbPromise('cart', 'delete', { ...currentProduct });
+    };
+
+    return (
+        <>
+            {currentProduct ? (
+                <div className='container my-1'>
+                    <Link to='/'>
+                        ← Back to Products
+                    </Link>
+
+                    <h2>{currentProduct.name}</h2>
+
+                    <p>
+                        {currentProduct.description}
+                    </p>
+
+                    <p>
+                        <strong>Price:</strong>
+                        ${currentProduct.price}
+                        {' '}
+                        <button onClick={addToCart}>
+                        Add to Cart
+                        </button>
+                        <button disabled={!cart.find(p => p._id === currentProduct._id)} onClick={removeFromCart}>
+                        Remove from Cart
+                        </button>
+                    </p>
+
+                    <img
+                        src={`/images/${currentProduct.image}`}
+                        alt={currentProduct.name}
+                    />
+                </div>
+            ) : null}
+            {
+                loading ? <img src={spinner} alt='loading' /> : null
+            }
+            <Cart />
+        </>
+    );
 };
 
-// export function useProductReducer(initialState) {
-//     return useReducer(reducer, initialState);
-// };
-
-export default reducer;
+export default Detail;
