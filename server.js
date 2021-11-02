@@ -1,55 +1,95 @@
-import React from "react";
-import { BrowserRouter as Router, Route, Switch } from "react-router-dom";
-import { ApolloProvider } from '@apollo/react-hooks';
-import ApolloClient from 'apollo-boost';
-import { Provider } from 'react-redux';
+import { useReducer } from 'react';
 
-import Nav from "./components/Nav";
+import {
+    ADD_TO_CART,
+    ADD_MULTIPLE_TO_CART,
+    CLEAR_CART,
+    REMOVE_FROM_CART,
+    UPDATE_CART_QUANTITY,
+    UPDATE_CATEGORIES,
+    UPDATE_CURRENT_CATEGORY,
+    UPDATE_PRODUCTS,
+    TOGGLE_CART,
+} from './actions';
 
-import Home from "./pages/Home";
-import Detail from "./pages/Detail";
-import NoMatch from "./pages/NoMatch";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import OrderHistory from "./pages/OrderHistory";
-import Success from './pages/Success';
+const initialState = {
+    cart: [],
+    cartOpen: false,
+    products: [],
+    categories: [],
+    currentCategory: ''    
+};
 
-import store from './utils/store';
+export const reducer = (state = initialState, action) => {
+    switch (action.type) {
+        // if check action.type and, return a new state object with an appropriately updated products array
+        case ADD_TO_CART: 
+            return {
+                ...state,
+                cartOpen: true,
+                cart: [...state.cart, action.product]
+            };
+        case ADD_MULTIPLE_TO_CART:
+            return {
+                ...state,
+                cart: [...state.cart, ...action.products]
+            };
+        case CLEAR_CART: 
+            return {
+                ...state,
+                cartOpen:false,
+                cart: []
+            };
+        case REMOVE_FROM_CART:
+            let newState = state.cart.filter(product => {
+                return product._id !== action._id;
+            });
 
-const client = new ApolloClient({
-    request: (operation) => {
-        const token = localStorage.getItem('id_token');
-        
-        operation.setContext({
-            headers: {
-                authorization: token ? `Bearer ${token}` : ''
-            }
-        })
-    },
-    uri: '/graphql',
-})
+            return {
+                ...state,
+                cartOpen: newState.length > 0,
+                cart: newState
+            };
+        case TOGGLE_CART:
+            return {
+                ...state,
+                cartOpen: !state.cartOpen
+            };
+        case UPDATE_CART_QUANTITY:
+            return {
+                ...state,
+                cartOpen: true,
+                cart: state.cart.map(product => {
+                    if (action._id === product._id) {
+                        product.purchaseQuantity = action.purchaseQuantity;
+                    }
+                    return product;
+                })
+            };
+        case UPDATE_PRODUCTS:
+            return {
+                ...state,
+                products: [...action.products]
+            };
+        case UPDATE_CATEGORIES:
+            return {
+                ...state,
+                categories: [...action.categories]
+            };
 
-function App() {
-    return (
-        <ApolloProvider client={client}>
-        <Router>
-            <div>
-            <Provider store={store}>
-                <Nav />
-                <Switch>
-                    <Route exact path="/" component={Home} />
-                    <Route exact path="/login" component={Login} />
-                    <Route exact path="/signup" component={Signup} />
-                    <Route exact path="/orderHistory" component={OrderHistory} />
-                    <Route exact path="/products/:id" component={Detail} />
-                    <Route exact path="/success" component={Success} />
-                    <Route component={NoMatch} />
-                </Switch>
-            </Provider>
-            </div>
-        </Router>
-        </ApolloProvider>
-    );
-}
+        case UPDATE_CURRENT_CATEGORY:
+            return {
+                ...state,
+                currentCategory: action.currentCategory
+            };
+        // else do not update state
+        default:
+            return state;
+    }
+};
 
-export default App;
+// export function useProductReducer(initialState) {
+//     return useReducer(reducer, initialState);
+// };
+
+export default reducer;
