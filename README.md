@@ -1,8 +1,7 @@
-# Shop-Shop With Redux
-[![Issues](https://img.shields.io/github/issues/deckiedevs/shop-shop-redux)](https://github.com/deckiedevs/shop-shop-redux/issues) [![Issues](https://img.shields.io/github/contributors/deckiedevs/shop-shop-redux)](https://github.com/deckiedevs/shop-shop-redux/graphs/contributors) 
+# Redux Store
 
 ## Description
-Shop Shop is a MERN stack e-commerce shop built with React-Redux and Stripe API.
+Redux Store is a MERN stack e-commerce shop built with React-Redux and Stripe API.
             
 View the deployed page at [Shop-Shop Redux](https://dd-shop-redux.herokuapp.com/).
 
